@@ -10,44 +10,50 @@ from math import sin, cos, tan, radians
 
 vertex_code = """
 #version 330 core
-layout(location = 0) in vec3 vertexPosition;
+in vec3 position;
+in vec3 color;
+out vec3 newColor;
 uniform mat4 rotation;
 uniform mat4 model;
 uniform mat4 projection;
 
 void main(){
-  gl_Position = projection * model * rotation * vec4(vertexPosition, 1.0);
+  gl_Position = projection * model * rotation * vec4(position, 1.0);
+  newColor = color;
 }
 """
 
 fragment_code = '''
 #version 330 core
+in vec3 newColor;
 out vec4 color;
 
 void main(){
-  color = vec4(1,0,0,1);//define color as red (RGB)
+  color = vec4(newColor, 1.0);
 }
 '''
 
 vertices = np.array([
-  [0.5, 0.0, 0.5],
-  [0.5, 0.0, -0.5],
-  [0.5, 0.0, 0.5],
-  [-0.5, 0.0, 0.5],
-  [0.5, 0.0, 0.5],
-  [0.0, 1.0, 0.0],
-  [0.0, 1.0, 0.0],
-  [-0.5, 0.0, 0.5],
-  [0.0, 1.0, 0.0],
-  [0.5, 0.0, -0.5],
-  [0.0, 1.0, 0.0],
-  [-0.5, 0.0, -0.5],
-  [-0.5, 0.0, -0.5],
-  [0.5, 0.0, -0.5],
-  [-0.5, 0.0, -0.5],
-  [-0.5, 0.0, 0.5],
+  # Vertices        Colors
+  [-.5, -.5, -.5], [1, 0, 0],
+  [.5, -.5, -.5], [0, 1, 0],
+  [.5, .5, -.5], [0, 0, 1],
+  [-.5, .5, -.5], [1, 1, 0],
+  [-.5, -.5, .5], [0, 1, 1],
+  [.5, -.5, .5], [1, 1, 1],
+  [.5, .5, .5], [0.5, 0.5, 0.5],
+  [-.5, .5, .5], [0.5, 0.5, 0.5],
+], dtype=np.float32)
 
-  ], dtype='f')
+indices = np.array([
+  0, 1, 2, 2, 3, 0,  # Front face
+  1, 5, 6, 6, 2, 1,  # Right face
+  5, 4, 7, 7, 6, 5,  # Back face
+  4, 0, 3, 3, 7, 4,  # Left face
+  3, 2, 6, 6, 7, 3,  # Top face
+  4, 5, 1, 1, 0, 4,  # Bottom face
+], dtype=np.uint32)
+
 
 
 def init():
@@ -66,17 +72,23 @@ def init():
   vao = glGenVertexArrays(1)
   glBindVertexArray(vao)
 
+  # Create Vertex Buffer Object (VBO) and Element Buffer Object (EBO)
   vbo = glGenBuffers(1)
-  glBindBuffer(GL_ARRAY_BUFFER, vbo)
-
   glBindBuffer(GL_ARRAY_BUFFER, vbo)
   glBufferData(GL_ARRAY_BUFFER, vertices.nbytes, vertices, GL_STATIC_DRAW)
 
-  stride = 3 * vertices.itemsize
-  position_offset = ctypes.c_void_p(0)
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, position_offset)
-  glEnableVertexAttribArray(0)
+  ebo = glGenBuffers(1)
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo)
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.nbytes, indices, GL_STATIC_DRAW)
 
+  # Set attribute pointers
+  stride = 6 * vertices.itemsize
+  position_offset = ctypes.c_void_p(0)
+  color_offset = ctypes.c_void_p(3 * vertices.itemsize)
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, position_offset)
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, color_offset)
+  glEnableVertexAttribArray(0)
+  glEnableVertexAttribArray(1)
 def display():
   global shaderProgram
   global vao
@@ -126,9 +138,9 @@ def display():
       [0.0, 0.0, -3.0, 1.0]
     ],
     [
-      [1.0, 0.0, 0.0, 0.0],
+      [cos(time), 0.0, -sin(time), 0.0],
       [0.0, 1.0, 0.0, 0.0],
-      [0.0, 0.0, 1.0, 0.0],
+      [sin(time), 0.0, cos(time), 0.0],
       [0.0, 0.0, -3.0, 1.0]
     ],
   ]
@@ -147,23 +159,17 @@ def display():
               [0.0, 0.0, -(2 * far * near) / (far - near), 0.0])
 
   projection_loc = glGetUniformLocation(shaderProgram, "projection")
+  model_loc = glGetUniformLocation(shaderProgram, "model")
+  rotation_loc = glGetUniformLocation(shaderProgram, "rotation")
+
   glUniformMatrix4fv(projection_loc, 1, GL_FALSE, projection)
 
   for idx, model in enumerate(models):
-    model_loc = glGetUniformLocation(shaderProgram, "model")
-    rotation_loc = glGetUniformLocation(shaderProgram, "rotation")
-
     glUniformMatrix4fv(model_loc, 1, GL_FALSE, model)
     glUniformMatrix4fv(rotation_loc, 1, GL_FALSE, rotations[idx])
 
-    glDrawArrays(GL_LINES, 0, 19)
-    glVertexAttribPointer(0, 3, GL_FLOAT, False, 0, None)
-    glBindAttribLocation(shaderProgram, 0, 'vertexPosition')
-    glEnableVertexAttribArray(0)
-
-
-  glBindBuffer(GL_ARRAY_BUFFER, 0)
-  glBindVertexArray(0)
+    glBindVertexArray(vao)
+    glDrawElements(GL_TRIANGLES, len(indices), GL_UNSIGNED_INT, None)
 
   #clean things up
   glBindBuffer(GL_ARRAY_BUFFER, 0)
