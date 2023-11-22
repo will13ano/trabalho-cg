@@ -8,7 +8,7 @@ from OpenGL.GLUT import *
 from math import sin, cos, tan, radians
 
 
-vertex_code = """
+vertex_code = '''
 #version 330 core
 in vec3 position;
 in vec3 color;
@@ -21,7 +21,7 @@ void main(){
   gl_Position = projection * model * rotation * vec4(position, 1.0);
   newColor = color;
 }
-"""
+'''
 
 fragment_code = '''
 #version 330 core
