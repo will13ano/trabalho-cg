@@ -7,31 +7,18 @@ from OpenGL.GL import shaders
 from OpenGL.GLUT import *
 from math import sin, cos, tan, radians
 
+vao = None;
+vbo = None;
+shaderProgram = None;
 
-vertex_code = '''
-#version 330 core
-in vec3 position;
-in vec3 color;
-out vec3 newColor;
-uniform mat4 rotation;
-uniform mat4 model;
-uniform mat4 projection;
+def readShaderFile(filename):
+	with open('shader/' + filename, 'r') as myfile:
+		return myfile.read()
 
-void main(){
-  gl_Position = projection * model * rotation * vec4(position, 1.0);
-  newColor = color;
-}
-'''
+vertex_code = readShaderFile('default.vs')
 
-fragment_code = '''
-#version 330 core
-in vec3 newColor;
-out vec4 color;
-
-void main(){
-  color = vec4(newColor, 1.0);
-}
-'''
+# Alterar esse cara para trocar o shaders
+fragment_code = readShaderFile('phong.fs')
 
 vertices = np.array([
   # Vertices        Colors
